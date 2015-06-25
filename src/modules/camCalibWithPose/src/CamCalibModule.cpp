@@ -124,7 +124,7 @@ bool CamCalibModule::configure(yarp::os::ResourceFinder &rf){
     Value *valGroup; // check assigns pointer to reference
     if(botConfig.check("group", valGroup, "Configuration group to load module options from (string)."))
     {
-        string strGroup = valGroup->asString().c_str();        
+        strGroup = valGroup->asString().c_str();        
         // is group a valid bottle?
         if (botConfig.check(strGroup.c_str())){            
             Bottle &group=botConfig.findGroup(strGroup.c_str(),string("Loading configuration from group " + strGroup).c_str());
@@ -218,9 +218,23 @@ bool CamCalibModule::updateModule()
     _prtHEncsIn.read(h_encs); //head encoders
     _prtTEncsIn.read(t_encs); //torso encoders
     _prtImuIn.read(imu);   //imu data
-    r = imu.get(0).asDouble();
-    p = imu.get(1).asDouble();
-    y = imu.get(2).asDouble();
+
+    double t =  h_encs.get(3).asDouble();
+    double vs = h_encs.get(4).asDouble();
+    double vg = h_encs.get(5).asDouble();
+    double ix = imu.get(0).asDouble();
+    double iy = imu.get(1).asDouble();
+    double iz = imu.get(2).asDouble();
+    r = ix; 
+    p = t + iy;
+    if (strGroup == "CAMERA_CALIBRATION_LEFT")
+    {
+        y = iz - (+vs - vg / 2);
+    }
+    else 
+    {
+        y = iz - (+vs - vg / 2);
+    }
 
     _prtImgIn.setPose(r,p,y);
     return true;

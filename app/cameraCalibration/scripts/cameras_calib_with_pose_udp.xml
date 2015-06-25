@@ -1,5 +1,5 @@
 <application>
-<name>Calib Cameras with pose</name>
+<name>Calib Cameras with pose UDP</name>
 <dependencies>
 </dependencies> 
 <module>
@@ -14,23 +14,23 @@
 </module>
 <module>
   <name>camCalibWithPose</name>
-  <parameters>--context cameraCalibration --from icubEyes.ini --group CAMERA_CALIBRATION_LEFT --name /icub/camcalibPose/left</parameters>  
-  <node>pc104</node>
+  <parameters>--context cameraCalibration --from icubEyes_640x480.ini --group CAMERA_CALIBRATION_LEFT --name /icub/camcalibPose/left</parameters>  
+  <node>localhost</node>
 </module>
 <module>
-  <name>camCalibWithPose</name>
-  <parameters>--context cameraCalibration --from icubEyes.ini --group CAMERA_CALIBRATION_RIGHT --name /icub/camcalibPose/right</parameters> 
-  <node>pc104</node>
-</module>
-<module>
-  <name>yarpview</name>
-  <parameters>--name /icub/view/left --x 0 --y 0 --p 50 --compact</parameters>
-  <node>icub16</node>
+  <name>camcalibWithPose</name>
+  <parameters>--context cameraCalibration --from icubEyes_640x480.ini --group CAMERA_CALIBRATION_RIGHT --name /icub/camcalibPose/right</parameters> 
+  <node>localhost</node>
 </module>
 <module>
   <name>yarpview</name>
-  <parameters>--name /icub/view/right --x 320 --y 0 --p 50 --compact</parameters>
-  <node>icub16</node>
+  <parameters>--name /icub/randazview/left --x 0 --y 0 --p 50 --compact</parameters>
+  <node>localhost</node>
+</module>
+<module>
+  <name>yarpview</name>
+  <parameters>--name /icub/randazview/right --x 320 --y 0 --p 50 --compact</parameters>
+  <node>localhost</node>
 </module>
 <module>
   <name>frameGrabberGui2</name>
@@ -51,56 +51,56 @@
 <connection>
   <from>/icub/cam/left</from>
   <to>/icub/camcalibPose/left/in</to>
-  <protocol>shmem</protocol>
+  <protocol>udp</protocol>
 </connection>
 <connection>
   <from>/icub/cam/right</from>
   <to>/icub/camcalibPose/right/in</to>
-  <protocol>shmem</protocol>
+  <protocol>udp</protocol>
 </connection>
 <connection>
   <from>/icub/inertial</from>
   <to>/icub/camcalibPose/left/imu/in</to>
-  <protocol>shmem</protocol>
+  <protocol>udp</protocol>
 </connection>
 <connection>
   <from>/icub/inertial</from>
   <to>/icub/camcalibPose/right/imu/in</to>
-  <protocol>shmem</protocol>
+  <protocol>udp</protocol>
 </connection>
 <connection>
   <from>/icub/head/state:o</from>
   <to>/icub/camcalibPose/right/head_encs/in</to>
-  <protocol>shmem</protocol>
+  <protocol>udp</protocol>
 </connection>
 <connection>
   <from>/icub/torso/state:o</from>
   <to>/icub/camcalibPose/right/torso_encs/in</to>
-  <protocol>shmem</protocol>
+  <protocol>udp</protocol>
 </connection>
 <connection>
   <from>/icub/head/state:o</from>
   <to>/icub/camcalibPose/left/head_encs/in</to>
-  <protocol>shmem</protocol>
+  <protocol>udp</protocol>
 </connection>
 <connection>
   <from>/icub/torso/state:o</from>
   <to>/icub/camcalibPose/left/torso_encs/in</to>
-  <protocol>shmem</protocol>
+  <protocol>udp</protocol>
 </connection>
 <connection>
   <from>/icub/inertial</from>
   <to>/icub/camcalibPose/left/imu/in</to>
-  <protocol>shmem</protocol>
+  <protocol>udp</protocol>
 </connection>
 <connection>
   <from>/icub/camcalibPose/left/out</from>
-  <to>/icub/view/left</to>
+  <to>/icub/randazview/left</to>
   <protocol>udp</protocol>
 </connection>
 <connection>
   <from>/icub/camcalibPose/right/out</from>
-  <to>/icub/view/right</to>
+  <to>/icub/randazview/right</to>
   <protocol>udp</protocol>
 </connection>
 </application>

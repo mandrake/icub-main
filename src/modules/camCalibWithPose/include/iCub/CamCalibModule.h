@@ -74,6 +74,7 @@ private:
     yarp::os::Port  _prtTEncsIn;
     yarp::os::Port  _prtImuIn;
     ICalibTool *    _calibTool;
+    std::string strGroup;
 
 public:
 
