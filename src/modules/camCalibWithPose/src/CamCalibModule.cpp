@@ -7,7 +7,7 @@
  */
 
 #include <iCub/CamCalibModule.h>
-#include <yarp/math/math.h>
+#include <yarp/math/Math.h>
 
 using namespace std;
 using namespace yarp::os;
@@ -215,12 +215,15 @@ bool CamCalibModule::updateModule()
     _prtTEncsIn.read(t_encs); //torso encoders
     _prtImuIn.read(imu);   //imu data
 
-    double t =  h_encs.get(3).asDouble();
-    double vs = h_encs.get(4).asDouble();
-    double vg = h_encs.get(5).asDouble();
-    double ix = imu.get(0).asDouble();
-    double iy = imu.get(1).asDouble();
-    double iz = imu.get(2).asDouble();
+    double t =  h_encs.get(3).asDouble()/180.0*M_PI;
+    double vs = h_encs.get(4).asDouble()/180.0*M_PI;
+    double vg = h_encs.get(5).asDouble()/180.0*M_PI;
+  //  double ix = -imu.get(0).asDouble()/180.0*M_PI;
+  //  double iy = imu.get(1).asDouble()/180.0*M_PI;
+  //  double iz = imu.get(2).asDouble()/180.0*M_PI;
+    double ix = h_encs.get(1).asDouble()/180.0*M_PI;
+    double iy = h_encs.get(0).asDouble()/180.0*M_PI;
+    double iz = h_encs.get(2).asDouble()/180.0*M_PI;
 
     yarp::sig::Vector neckv(3);
     neckv(0) = ix;
@@ -232,19 +235,20 @@ bool CamCalibModule::updateModule()
     eyev(1) = t;
     if (strGroup == "CAMERA_CALIBRATION_LEFT")
     {
-        eyev(2) = (+vs + vg / 2);
+        eyev(2) = -(+vs + vg / 2);
     }
     else
     {
-        eyev(2) = (+vs - vg / 2);
+        eyev(2) = -(+vs - vg / 2);
     }
 
     yarp::sig::Matrix Rneck = yarp::math::rpy2dcm(neckv);
     yarp::sig::Matrix Reye = yarp::math::rpy2dcm(eyev);
-    yarp::sig::Matrix T = Rneck*Reye;
+    //yarp::sig::Matrix T = Rneck*Reye;
+yarp::sig::Matrix T = Reye*Rneck;
     yarp::sig::Vector v = yarp::math::dcm2rpy(T);
 
-    _prtImgIn.setPose(v(0),v(1),v(2));
+    _prtImgIn.setPose(v(0)*180.0/M_PI,v(1)*180.0/M_PI,v(2)*180.0/M_PI);
     return true;
 }
 
