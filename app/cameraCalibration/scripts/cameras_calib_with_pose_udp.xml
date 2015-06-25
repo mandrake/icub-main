@@ -15,12 +15,12 @@
 <module>
   <name>camCalibWithPose</name>
   <parameters>--context cameraCalibration --from icubEyes_640x480.ini --group CAMERA_CALIBRATION_LEFT --name /icub/camcalibPose/left</parameters>  
-  <node>localhost</node>
+  <node>pc104</node>
 </module>
 <module>
   <name>camcalibWithPose</name>
   <parameters>--context cameraCalibration --from icubEyes_640x480.ini --group CAMERA_CALIBRATION_RIGHT --name /icub/camcalibPose/right</parameters> 
-  <node>localhost</node>
+  <node>pc104</node>
 </module>
 <module>
   <name>yarpview</name>

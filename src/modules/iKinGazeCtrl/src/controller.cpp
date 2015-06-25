@@ -251,8 +251,8 @@ void Controller::stopLimb(const bool execStopPosition)
 {
     if (commData->neckPosCtrlOn)
     {
-        if (execStopPosition)
-            posHead->stop(neckJoints.size(),neckJoints.getFirst());
+        //if (execStopPosition)
+        //    posHead->stop(neckJoints.size(),neckJoints.getFirst());
 
         // note: vel==0.0 is always achievable
         velHead->velocityMove(eyesJoints.size(),eyesJoints.getFirst(),
@@ -847,7 +847,7 @@ void Controller::run()
         if (commData->neckPosCtrlOn)
         {
             posdeg=(CTRL_RAD2DEG)*IntPlan->get();
-            posNeck->setPositions(neckJoints.size(),neckJoints.getFirst(),posdeg.data());
+            //posNeck->setPositions(neckJoints.size(),neckJoints.getFirst(),posdeg.data());
             velHead->velocityMove(eyesJoints.size(),eyesJoints.getFirst(),vdeg.subVector(3,5).data());
         }
         else

@@ -226,9 +226,29 @@ bool CamCalibModule::updateModule()
     double iz = h_encs.get(2).asDouble()/180.0*M_PI;
 
     yarp::sig::Vector neckv(3);
+  
+  //  Working
     neckv(0) = ix;
     neckv(1) = iy;
     neckv(2) = iz;
+
+    //neckv(1) = ix;
+    //neckv(0) = iy;
+    //neckv(2) = iz;
+
+//    neckv(1) = ix;
+  //  neckv(2) = iy;
+  //  neckv(0) = iz;
+
+   // neckv(2) = ix;
+   // neckv(1) = iy;
+   // neckv(0) = iz;
+
+   // neckv(0) = ix;
+   // neckv(2) = iy;
+   // neckv(1) = iz;
+
+    printf ("%+5.1f %+5.1f %+5.1f", neckv(0)*180.0/M_PI,neckv(1)*180.0/M_PI,neckv(2)*180.0/M_PI);
 
     yarp::sig::Vector eyev(3);
     eyev(0) = 0;
@@ -242,13 +262,51 @@ bool CamCalibModule::updateModule()
         eyev(2) = -(+vs - vg / 2);
     }
 
-    yarp::sig::Matrix Rneck = yarp::math::rpy2dcm(neckv);
+    yarp::sig::Vector neckRollv(3);
+    neckRollv(0) = -ix;
+    neckRollv(1) = 0;
+    neckRollv(2) = 0;
+    yarp::sig::Matrix neckRoll = yarp::math::rpy2dcm(neckRollv);
+
+    yarp::sig::Vector neckPitchv(3);
+    neckPitchv(0) = 0;
+    neckPitchv(1) = iy;
+    neckPitchv(2) = 0;
+    yarp::sig::Matrix neckPitch = yarp::math::rpy2dcm(neckPitchv);
+
+    yarp::sig::Vector neckYawv(3);
+    neckYawv(0) = 0;
+    neckYawv(1) = 0;
+    neckYawv(2) = iz;
+    yarp::sig::Matrix neckYaw = yarp::math::rpy2dcm(neckYawv);
+
+
+//    yarp::sig::Matrix Rneck = yarp::math::rpy2dcm(neckv);
+   // yarp::sig::Matrix Rneck = (neckPitch * neckRoll) * neckYaw;
+//    yarp::sig::Matrix Rneck = (neckYaw * neckRoll) * neckPitch;
+  //  yarp::sig::Matrix Rneck = (neckRoll * neckPitch) * neckYaw;
+//    yarp::sig::Matrix Rneck = (neckYaw * neckPitch) * neckRoll;
+  //    yarp::sig::Matrix Rneck = (neckPitch * neckYaw) * neckRoll;
+//    yarp::sig::Matrix Rneck = (neckRoll * neckYaw) * neckPitch;
+
+
+    yarp::sig::Matrix Rneck = (neckPitch * neckRoll) * neckYaw;
+   
     yarp::sig::Matrix Reye = yarp::math::rpy2dcm(eyev);
-    //yarp::sig::Matrix T = Rneck*Reye;
-yarp::sig::Matrix T = Reye*Rneck;
+    yarp::sig::Matrix T = Rneck*Reye;
+//    yarp::sig::Matrix T = Reye*Rneck;
     yarp::sig::Vector v = yarp::math::dcm2rpy(T);
 
+    printf (">>>>>>>> %+5.1f %+5.1f %+5.1f", v(0)*180.0/M_PI,v(1)*180.0/M_PI,v(2)*180.0/M_PI);
+    printf (">>>>>>>> %+5.1f %+5.1f %+5.1f", -imu.get(0).asDouble(), imu.get(1).asDouble(), imu.get(2).asDouble());
+    printf (">>>>>>>> %+5.1f %+5.1f %+5.1f\n", -imu.get(0).asDouble() - v(0)*180.0/M_PI, imu.get(1).asDouble() - v(1)*180.0/M_PI, imu.get(2).asDouble() - v(2)*180.0/M_PI);
+    //WORKING
     _prtImgIn.setPose(v(0)*180.0/M_PI,v(1)*180.0/M_PI,v(2)*180.0/M_PI);
+//    _prtImgIn.setPose(v(1)*180.0/M_PI,v(0)*180.0/M_PI,v(2)*180.0/M_PI);
+ //   _prtImgIn.setPose(v(1)*180.0/M_PI,v(2)*180.0/M_PI,v(0)*180.0/M_PI);
+//   _prtImgIn.setPose(v(2)*180.0/M_PI,v(1)*180.0/M_PI,v(0)*180.0/M_PI);
+  //  _prtImgIn.setPose(v(0)*180.0/M_PI,v(2)*180.0/M_PI,v(1)*180.0/M_PI);
+
     return true;
 }
 
