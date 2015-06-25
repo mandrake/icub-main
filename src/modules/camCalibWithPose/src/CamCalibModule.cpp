@@ -7,9 +7,11 @@
  */
 
 #include <iCub/CamCalibModule.h>
+#include <yarp/math/math.h>
 
 using namespace std;
 using namespace yarp::os;
+using namespace yarp::math;
 using namespace yarp::sig;
 
 CamCalibPort::CamCalibPort()
@@ -206,12 +208,6 @@ bool CamCalibModule::interruptModule(){
 
 bool CamCalibModule::updateModule()
 {
-    double i_r = 0;
-    double i_p = 0;
-    double i_y = 0;
-    double r = 0;
-    double p = 0;
-    double y = 0;
     Bottle h_encs;
     Bottle t_encs;
     Bottle imu;
@@ -225,18 +221,30 @@ bool CamCalibModule::updateModule()
     double ix = imu.get(0).asDouble();
     double iy = imu.get(1).asDouble();
     double iz = imu.get(2).asDouble();
-    r = ix; 
-    p = t + iy;
+
+    yarp::sig::Vector neckv(3);
+    neckv(0) = ix;
+    neckv(1) = iy;
+    neckv(2) = iz;
+
+    yarp::sig::Vector eyev(3);
+    eyev(0) = 0;
+    eyev(1) = t;
     if (strGroup == "CAMERA_CALIBRATION_LEFT")
     {
-        y = iz - (+vs - vg / 2);
+        eyev(2) = (+vs + vg / 2);
     }
-    else 
+    else
     {
-        y = iz - (+vs - vg / 2);
+        eyev(2) = (+vs - vg / 2);
     }
 
-    _prtImgIn.setPose(r,p,y);
+    yarp::sig::Matrix Rneck = yarp::math::rpy2dcm(neckv);
+    yarp::sig::Matrix Reye = yarp::math::rpy2dcm(eyev);
+    yarp::sig::Matrix T = Rneck*Reye;
+    yarp::sig::Vector v = yarp::math::dcm2rpy(T);
+
+    _prtImgIn.setPose(v(0),v(1),v(2));
     return true;
 }
 
