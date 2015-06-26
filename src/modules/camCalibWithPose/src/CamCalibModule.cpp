@@ -115,16 +115,38 @@ void CamCalibPort::updatePose() {
     this->getEnvelope(s);
     double time = s.getTime();
 
-    printf("%d\n", h_encs_map.size());
-
-//   printf("%f  %f  %f\n",time, pippo, time-pippo);
-
-
-    
-
-#if 0
 
     m.lock();
+    std::map<double,yarp::os::Bottle>::iterator it, it_prev, it_next;
+    it_next = h_encs_map.lower_bound(time);
+
+    it_prev = it_next;
+    if(it_prev != h_encs_map.begin()) {
+        --it_prev;
+    }
+    if(it_next == h_encs_map.end() && it_next != h_encs_map.begin()) {
+        --it_next;
+    }
+
+    double diff_prev = time -it_prev->first;
+    double diff_next = it_next->first - time;
+    double diff = (diff_prev >= diff_next) ? diff_next : diff_prev;
+
+    bool err_prev = ((diff_prev >= 0.0025) || (diff_prev <= -0.0025));
+    bool warn_prev = ((diff_prev >= 0.0015) || (diff_prev <= -0.0015));
+    bool err_next = ((diff_next >= 0.0025) || (diff_next <= -0.0025));
+    bool warn_next = ((diff_next >= 0.0015) || (diff_next <= -0.0015));
+    bool err = ((diff >= 0.0025) || (diff <= -0.0025));
+    bool warn = ((diff >= 0.0015) || (diff <= -0.0015));
+    printf("%f, %f, %s%f%s, %f, %s%f%s,               %s%f%s\n", time,
+                                           it_prev->first,
+                                           (err_prev ? "\033[0;31m" : (warn_prev ? "\033[0;33m" : "")), diff_prev, ((err_prev||warn_prev) ? "\033[0m" : ""),
+                                           it_next->first,
+                                           (err_next ? "\033[0;31m" : (warn_next ? "\033[0;33m" : "")), diff_next, ((err_next||warn_next) ? "\033[0m" : ""),
+                                           (err ? "\033[0;31m" : (warn ? "\033[0;33m" : "")), diff, ((err||warn) ? "\033[0m" : ""));
+
+    const yarp::os::Bottle& h_encs = (diff_prev >= diff_next) ? it_next->second : it_prev->second;
+
     double t =  h_encs.get(3).asDouble()/180.0*M_PI; // eye tilt
     double vs = h_encs.get(4).asDouble()/180.0*M_PI; // eye version
     double vg = h_encs.get(5).asDouble()/180.0*M_PI; // eye vergence
@@ -135,7 +157,9 @@ void CamCalibPort::updatePose() {
 
     double imu_x = imu.get(0).asDouble()/180.0*M_PI; // imu roll
     double imu_y = imu.get(1).asDouble()/180.0*M_PI; // imu pitch
-    double imu_z = imu.get(2).asDouble()/180.0*M_PI;
+    double imu_z = imu.get(2).asDouble()/180.0*M_PI; // imu yaw
+
+    h_encs_map.erase(h_encs_map.begin(), it_next);
     m.unlock();
 
     yarp::sig::Vector neck_roll_vector(3);
@@ -246,8 +270,6 @@ void CamCalibPort::updatePose() {
     roll = v(0)*180.0/M_PI;
     pitch = v(1)*180.0/M_PI;
     yaw = v(2)*180.0/M_PI;
-
-#endif
 }
 
 
@@ -358,12 +380,15 @@ bool CamCalibModule::updateModule()
     Bottle* t_encs = _prtTEncsIn.read(false); //torso encoders
     Bottle* imu = _prtImuIn.read(false); //imu data
 
-    yarp::os::Stamp s;
-    _prtHEncsIn.getEnvelope(s);
-   double time = s.getTime();
+    if (h_encs!=NULL) {
+        yarp::os::Stamp s;
+        _prtHEncsIn.getEnvelope(s);
+        double time = s.getTime();
+        if(time !=0) {
+            _prtImgIn.setHeadEncoders(time, *h_encs);
+        }
+    }
 
-
-    if (h_encs!=NULL) _prtImgIn.setHeadEncoders(time, *h_encs);
     if (t_encs!=NULL) _prtImgIn.setTorsoEncoders(*t_encs);
     if (imu!=NULL)    _prtImgIn.setImuData(*imu);
 
