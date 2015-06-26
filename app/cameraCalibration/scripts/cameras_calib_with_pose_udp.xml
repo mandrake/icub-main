@@ -14,12 +14,12 @@
 </module>
 <module>
   <name>camCalibWithPose</name>
-  <parameters>--context cameraCalibration --from icubEyes_640x480.ini --group CAMERA_CALIBRATION_LEFT --name /icub/camcalibPose/left</parameters>  
+  <parameters>--context cameraCalibration --from icubEyes.ini --group CAMERA_CALIBRATION_LEFT --name /icub/camcalibPose/left</parameters>  
   <node>pc104</node>
 </module>
 <module>
-  <name>camcalibWithPose</name>
-  <parameters>--context cameraCalibration --from icubEyes_640x480.ini --group CAMERA_CALIBRATION_RIGHT --name /icub/camcalibPose/right</parameters> 
+  <name>camCalibWithPose</name>
+  <parameters>--context cameraCalibration --from icubEyes.ini --group CAMERA_CALIBRATION_RIGHT --name /icub/camcalibPose/right</parameters> 
   <node>pc104</node>
 </module>
 <module>

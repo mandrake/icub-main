@@ -218,9 +218,11 @@ bool CamCalibModule::updateModule()
     double t =  h_encs.get(3).asDouble()/180.0*M_PI;
     double vs = h_encs.get(4).asDouble()/180.0*M_PI;
     double vg = h_encs.get(5).asDouble()/180.0*M_PI;
-  //  double ix = -imu.get(0).asDouble()/180.0*M_PI;
-  //  double iy = imu.get(1).asDouble()/180.0*M_PI;
-  //  double iz = imu.get(2).asDouble()/180.0*M_PI;
+    double ix = imu.get(0).asDouble()/180.0*M_PI;
+    double iy = -imu.get(1).asDouble()/180.0*M_PI;
+    double iz = -imu.get(2).asDouble()/180.0*M_PI;
+
+#if 0
     double ix = h_encs.get(1).asDouble()/180.0*M_PI;
     double iy = h_encs.get(0).asDouble()/180.0*M_PI;
     double iz = h_encs.get(2).asDouble()/180.0*M_PI;
@@ -306,6 +308,10 @@ bool CamCalibModule::updateModule()
  //   _prtImgIn.setPose(v(1)*180.0/M_PI,v(2)*180.0/M_PI,v(0)*180.0/M_PI);
 //   _prtImgIn.setPose(v(2)*180.0/M_PI,v(1)*180.0/M_PI,v(0)*180.0/M_PI);
   //  _prtImgIn.setPose(v(0)*180.0/M_PI,v(2)*180.0/M_PI,v(1)*180.0/M_PI);
+
+#endif // 0
+
+    _prtImgIn.setPose(ix, iy, iz);
 
     return true;
 }
