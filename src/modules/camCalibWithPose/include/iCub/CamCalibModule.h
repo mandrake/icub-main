@@ -43,6 +43,14 @@ private:
     double pitch;
     double yaw;
     yarp::os::Mutex m;
+    double pippo;
+
+    std::map<double, yarp::os::Bottle> h_encs_map;
+//    yarp::os::Bottle h_encs ;
+    yarp::os::Bottle t_encs ;
+    yarp::os::Bottle imu ;
+
+    void updatePose();
 
     virtual void onRead(yarp::sig::ImageOf<yarp::sig::PixelRgb> &yrpImgIn);
 
@@ -52,7 +60,10 @@ public:
     void setSaturation(double satVal);
     void setPointers(yarp::os::Port *_portImgOut, ICalibTool *_calibTool);
     void setVerbose(const bool sw) { verbose=sw; }
-    void setPose(double r, double p, double y) { m.lock();  roll = r; pitch = p; yaw = y; m.unlock(); }
+
+    void setHeadEncoders(double time, const yarp::os::Bottle &h_encs) { m.lock(); h_encs_map[time] = h_encs; m.unlock(); }
+    void setTorsoEncoders(const yarp::os::Bottle &t_encs) { m.lock(); this->t_encs = t_encs; m.unlock(); }
+    void setImuData(const yarp::os::Bottle &imu) { m.lock(); this->imu = imu; m.unlock(); }
 };
 
 
@@ -70,9 +81,9 @@ private:
     CamCalibPort    _prtImgIn;
     yarp::os::Port  _prtImgOut;
     yarp::os::Port  _configPort;
-    yarp::os::Port  _prtHEncsIn;
-    yarp::os::Port  _prtTEncsIn;
-    yarp::os::Port  _prtImuIn;
+    yarp::os::BufferedPort<yarp::os::Bottle>  _prtHEncsIn;
+    yarp::os::BufferedPort<yarp::os::Bottle>  _prtTEncsIn;
+    yarp::os::BufferedPort<yarp::os::Bottle>  _prtImuIn;
     ICalibTool *    _calibTool;
     std::string strGroup;
 
@@ -88,7 +99,6 @@ public:
     virtual bool updateModule();
     virtual bool respond(const yarp::os::Bottle& command, yarp::os::Bottle& reply);
     virtual double getPeriod();
-
 };
 
 

@@ -48,6 +48,11 @@
      <port timeout="10">/icub/cam/right</port>
   </dependencies>
 </module>
+<module>
+  <name>positionDirectControl</name>
+  <parameters>--robot icub --part head --joints "(0 1 2)"</parameters>
+  <node>icub16</node>
+</module>
 <connection>
   <from>/icub/cam/left</from>
   <to>/icub/camcalibPose/left/in</to>
@@ -102,6 +107,21 @@
   <from>/icub/camcalibPose/right/out</from>
   <to>/icub/randazview/right</to>
   <protocol>udp</protocol>
+</connection>
+<connection>
+  <from>/icub/camcalibPose/left/out</from>
+  <to>/oculus/display/left:i</to>
+  <protocol>udp</protocol>
+</connection>
+<connection>
+  <from>/icub/camcalibPose/right/out</from>
+  <to>/oculus/display/right:i</to>
+  <protocol>udp</protocol>
+</connection>
+<connection>
+  <from>/oculus/headpose/orientation:o</from>
+  <to>/directPositionControl/icub/head/command:i</to>
+  <protocol>tcp</protocol>
 </connection>
 </application>
 

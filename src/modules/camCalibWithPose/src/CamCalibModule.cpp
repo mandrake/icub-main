@@ -8,6 +8,7 @@
 
 #include <iCub/CamCalibModule.h>
 #include <yarp/math/Math.h>
+#include <yarp/os/Stamp.h>
 
 using namespace std;
 using namespace yarp::os;
@@ -37,6 +38,9 @@ void CamCalibPort::setSaturation(double satVal)
 void CamCalibPort::onRead(ImageOf<PixelRgb> &yrpImgIn)
 {
     double t=Time::now();
+
+    updatePose();
+
     // execute calibration
     if (portImgOut!=NULL)
     {        
@@ -104,6 +108,148 @@ void CamCalibPort::onRead(ImageOf<PixelRgb> &yrpImgIn)
 
     t0=t;
 }
+
+
+void CamCalibPort::updatePose() {
+    yarp::os::Stamp s;
+    this->getEnvelope(s);
+    double time = s.getTime();
+
+    printf("%d\n", h_encs_map.size());
+
+//   printf("%f  %f  %f\n",time, pippo, time-pippo);
+
+
+    
+
+#if 0
+
+    m.lock();
+    double t =  h_encs.get(3).asDouble()/180.0*M_PI; // eye tilt
+    double vs = h_encs.get(4).asDouble()/180.0*M_PI; // eye version
+    double vg = h_encs.get(5).asDouble()/180.0*M_PI; // eye vergence
+
+    double ix = -h_encs.get(1).asDouble()/180.0*M_PI; // neck roll
+    double iy = h_encs.get(0).asDouble()/180.0*M_PI;  // neck pitch
+    double iz = h_encs.get(2).asDouble()/180.0*M_PI;  // neck yaw
+
+    double imu_x = imu.get(0).asDouble()/180.0*M_PI; // imu roll
+    double imu_y = imu.get(1).asDouble()/180.0*M_PI; // imu pitch
+    double imu_z = imu.get(2).asDouble()/180.0*M_PI;
+    m.unlock();
+
+    yarp::sig::Vector neck_roll_vector(3);
+    neck_roll_vector(0) = ix;
+    neck_roll_vector(1) = 0;
+    neck_roll_vector(2) = 0;
+    yarp::sig::Matrix neck_roll_dcm = yarp::math::rpy2dcm(neck_roll_vector);
+
+    yarp::sig::Vector neck_pitch_vector(3);
+    neck_pitch_vector(0) = 0;
+    neck_pitch_vector(1) = iy;
+    neck_pitch_vector(2) = 0;
+    yarp::sig::Matrix neck_pitch_dcm = yarp::math::rpy2dcm(neck_pitch_vector);
+
+    yarp::sig::Vector neck_yaw_vector(3);
+    neck_yaw_vector(0) = 0;
+    neck_yaw_vector(1) = 0;
+    neck_yaw_vector(2) = iz;
+    yarp::sig::Matrix neck_yaw_dcm = yarp::math::rpy2dcm(neck_yaw_vector);
+
+    yarp::sig::Matrix neck_dcm = (neck_pitch_dcm * neck_roll_dcm) * neck_yaw_dcm;
+
+
+
+    yarp::sig::Vector eye_pitch_vector(3);
+    eye_pitch_vector(0) = 0;
+    eye_pitch_vector(1) = t;
+    eye_pitch_vector(2) = 0;
+    yarp::sig::Matrix eye_pitch_dcm = yarp::math::rpy2dcm(eye_pitch_vector);
+
+
+    yarp::sig::Vector eye_yaw_vector(3);
+    eye_yaw_vector(0) = 0;
+    eye_yaw_vector(1) = 0;
+    eye_yaw_vector(2) = 0;
+//    if (strGroup == "CAMERA_CALIBRATION_LEFT") {
+//        eye_yaw_vector(2) = -(vs + vg/2);
+//    } else {
+//        eye_yaw_vector(2) = -(vs - vg / 2);
+//    }
+    yarp::sig::Matrix eye_yaw_dcm = yarp::math::rpy2dcm(eye_yaw_vector);
+
+    yarp::sig::Matrix eye_dcm = eye_pitch_dcm * eye_yaw_dcm;
+
+
+
+
+    yarp::sig::Matrix T = neck_dcm * eye_dcm;
+    yarp::sig::Vector v = yarp::math::dcm2rpy(T);
+
+
+
+
+
+    yarp::sig::Vector imu_roll_vector(3);
+    imu_roll_vector(0) = imu_x;
+    imu_roll_vector(1) = 0;
+    imu_roll_vector(2) = 0;
+    yarp::sig::Matrix imu_roll_dcm = yarp::math::rpy2dcm(imu_roll_vector);
+
+    yarp::sig::Vector imu_pitch_vector(3);
+    imu_pitch_vector(0) = 0;
+    imu_pitch_vector(1) = imu_y;
+    imu_pitch_vector(2) = 0;
+    yarp::sig::Matrix imu_pitch_dcm = yarp::math::rpy2dcm(imu_pitch_vector);
+
+    yarp::sig::Vector imu_yaw_vector(3);
+    imu_yaw_vector(0) = 0;
+    imu_yaw_vector(1) = 0;
+    imu_yaw_vector(2) = imu_z;
+    yarp::sig::Matrix imu_yaw_dcm = yarp::math::rpy2dcm(imu_yaw_vector);
+
+    yarp::sig::Matrix imu_dcm = (imu_yaw_dcm * imu_roll_dcm) * imu_pitch_dcm;
+
+//   uncomment this to use inertial
+    //yarp::sig::Vector v = yarp::math::dcm2rpy(imu_dcm);
+    //v = yarp::math::dcm2rpy(imu_dcm);
+
+
+#if 0
+    printf("\n--------------------------------------\n");
+    printf ("%+03.3f %+03.3f %+03.3f", neck_roll_vector(0)*180.0/M_PI, neck_pitch_vector(1)*180.0/M_PI, neck_yaw_vector(2)*180.0/M_PI);
+    printf ("  >>>>>>>> %+03.3f %+03.3f %+03.3f", v(0)*180.0/M_PI,v(1)*180.0/M_PI,v(2)*180.0/M_PI);
+    printf ("  >>>>>>>> %+03.3f %+03.3f %+03.3f", imu_r(0)*180.0/M_PI, imu_p(1)*180.0/M_PI, imu_y(2)*180.0/M_PI);
+
+    printf("\n--------------------------------------\n");
+    printf("encoders                  imu                       diff\n");
+    for(int i = 0; i <= 2; ++i) {
+        for(int j = 0; j <= 2; ++j) {
+            printf("%+03.3f ", neck_dcm(i,j));
+        }
+        printf("     ");
+        for(int j = 0; j <= 2; ++j) {
+            printf("%+03.3f ", imu_dcm(i,j));
+        }
+        printf("     ");
+        for(int j = 0; j <= 2; ++j) {
+            double diff = neck_dcm(i,j) - imu_dcm(i,j);
+            bool err = ((diff >= 0.2) || (diff <= -0.2));
+            bool warn = ((diff >= 0.05) || (diff <= -0.05));
+            printf("%s%+03.3f%s ", (err ? "\033[0;31m" : (warn ? "\033[0;33m" : "")), diff, ((err||warn) ? "\033[0m" : ""));
+        }
+        printf("\n");
+    }
+    printf("\n--------------------------------------\n");
+#endif
+
+    roll = v(0)*180.0/M_PI;
+    pitch = v(1)*180.0/M_PI;
+    yaw = v(2)*180.0/M_PI;
+
+#endif
+}
+
 
 CamCalibModule::CamCalibModule(){
 
@@ -208,110 +354,18 @@ bool CamCalibModule::interruptModule(){
 
 bool CamCalibModule::updateModule()
 {
-    Bottle h_encs;
-    Bottle t_encs;
-    Bottle imu;
-    _prtHEncsIn.read(h_encs); //head encoders
-    _prtTEncsIn.read(t_encs); //torso encoders
-    _prtImuIn.read(imu);   //imu data
+    Bottle* h_encs = _prtHEncsIn.read(false); //head encoders
+    Bottle* t_encs = _prtTEncsIn.read(false); //torso encoders
+    Bottle* imu = _prtImuIn.read(false); //imu data
 
-    double t =  h_encs.get(3).asDouble()/180.0*M_PI;
-    double vs = h_encs.get(4).asDouble()/180.0*M_PI;
-    double vg = h_encs.get(5).asDouble()/180.0*M_PI;
-    double ix = imu.get(0).asDouble()/180.0*M_PI;
-    double iy = -imu.get(1).asDouble()/180.0*M_PI;
-    double iz = -imu.get(2).asDouble()/180.0*M_PI;
-
-#if 0
-    double ix = h_encs.get(1).asDouble()/180.0*M_PI;
-    double iy = h_encs.get(0).asDouble()/180.0*M_PI;
-    double iz = h_encs.get(2).asDouble()/180.0*M_PI;
-
-    yarp::sig::Vector neckv(3);
-  
-  //  Working
-    neckv(0) = ix;
-    neckv(1) = iy;
-    neckv(2) = iz;
-
-    //neckv(1) = ix;
-    //neckv(0) = iy;
-    //neckv(2) = iz;
-
-//    neckv(1) = ix;
-  //  neckv(2) = iy;
-  //  neckv(0) = iz;
-
-   // neckv(2) = ix;
-   // neckv(1) = iy;
-   // neckv(0) = iz;
-
-   // neckv(0) = ix;
-   // neckv(2) = iy;
-   // neckv(1) = iz;
-
-    printf ("%+5.1f %+5.1f %+5.1f", neckv(0)*180.0/M_PI,neckv(1)*180.0/M_PI,neckv(2)*180.0/M_PI);
-
-    yarp::sig::Vector eyev(3);
-    eyev(0) = 0;
-    eyev(1) = t;
-    if (strGroup == "CAMERA_CALIBRATION_LEFT")
-    {
-        eyev(2) = -(+vs + vg / 2);
-    }
-    else
-    {
-        eyev(2) = -(+vs - vg / 2);
-    }
-
-    yarp::sig::Vector neckRollv(3);
-    neckRollv(0) = -ix;
-    neckRollv(1) = 0;
-    neckRollv(2) = 0;
-    yarp::sig::Matrix neckRoll = yarp::math::rpy2dcm(neckRollv);
-
-    yarp::sig::Vector neckPitchv(3);
-    neckPitchv(0) = 0;
-    neckPitchv(1) = iy;
-    neckPitchv(2) = 0;
-    yarp::sig::Matrix neckPitch = yarp::math::rpy2dcm(neckPitchv);
-
-    yarp::sig::Vector neckYawv(3);
-    neckYawv(0) = 0;
-    neckYawv(1) = 0;
-    neckYawv(2) = iz;
-    yarp::sig::Matrix neckYaw = yarp::math::rpy2dcm(neckYawv);
+    yarp::os::Stamp s;
+    _prtHEncsIn.getEnvelope(s);
+   double time = s.getTime();
 
 
-//    yarp::sig::Matrix Rneck = yarp::math::rpy2dcm(neckv);
-   // yarp::sig::Matrix Rneck = (neckPitch * neckRoll) * neckYaw;
-//    yarp::sig::Matrix Rneck = (neckYaw * neckRoll) * neckPitch;
-  //  yarp::sig::Matrix Rneck = (neckRoll * neckPitch) * neckYaw;
-//    yarp::sig::Matrix Rneck = (neckYaw * neckPitch) * neckRoll;
-  //    yarp::sig::Matrix Rneck = (neckPitch * neckYaw) * neckRoll;
-//    yarp::sig::Matrix Rneck = (neckRoll * neckYaw) * neckPitch;
-
-
-    yarp::sig::Matrix Rneck = (neckPitch * neckRoll) * neckYaw;
-   
-    yarp::sig::Matrix Reye = yarp::math::rpy2dcm(eyev);
-    yarp::sig::Matrix T = Rneck*Reye;
-//    yarp::sig::Matrix T = Reye*Rneck;
-    yarp::sig::Vector v = yarp::math::dcm2rpy(T);
-
-    printf (">>>>>>>> %+5.1f %+5.1f %+5.1f", v(0)*180.0/M_PI,v(1)*180.0/M_PI,v(2)*180.0/M_PI);
-    printf (">>>>>>>> %+5.1f %+5.1f %+5.1f", -imu.get(0).asDouble(), imu.get(1).asDouble(), imu.get(2).asDouble());
-    printf (">>>>>>>> %+5.1f %+5.1f %+5.1f\n", -imu.get(0).asDouble() - v(0)*180.0/M_PI, imu.get(1).asDouble() - v(1)*180.0/M_PI, imu.get(2).asDouble() - v(2)*180.0/M_PI);
-    //WORKING
-    _prtImgIn.setPose(v(0)*180.0/M_PI,v(1)*180.0/M_PI,v(2)*180.0/M_PI);
-//    _prtImgIn.setPose(v(1)*180.0/M_PI,v(0)*180.0/M_PI,v(2)*180.0/M_PI);
- //   _prtImgIn.setPose(v(1)*180.0/M_PI,v(2)*180.0/M_PI,v(0)*180.0/M_PI);
-//   _prtImgIn.setPose(v(2)*180.0/M_PI,v(1)*180.0/M_PI,v(0)*180.0/M_PI);
-  //  _prtImgIn.setPose(v(0)*180.0/M_PI,v(2)*180.0/M_PI,v(1)*180.0/M_PI);
-
-#endif // 0
-
-    _prtImgIn.setPose(ix, iy, iz);
+    if (h_encs!=NULL) _prtImgIn.setHeadEncoders(time, *h_encs);
+    if (t_encs!=NULL) _prtImgIn.setTorsoEncoders(*t_encs);
+    if (imu!=NULL)    _prtImgIn.setImuData(*imu);
 
     return true;
 }
@@ -342,5 +396,4 @@ bool CamCalibModule::respond(const Bottle& command, Bottle& reply)
     }
     return true;
 }
-
 
