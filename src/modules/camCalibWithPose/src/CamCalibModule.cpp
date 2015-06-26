@@ -345,6 +345,8 @@ bool CamCalibModule::configure(yarp::os::ResourceFinder &rf){
     _prtImgOut.open(getName("/out"));
     _configPort.open(getName("/conf"));
     _prtHEncsIn.open(getName("/head_encs/in"));
+    _prtHEncsIn._prtImgIn = &_prtImgIn;
+    _prtHEncsIn.useCallback();
     _prtTEncsIn.open(getName("/torso_encs/in"));
     _prtImuIn.open(getName("/imu/in"));
     attach(_configPort);
@@ -371,23 +373,24 @@ bool CamCalibModule::interruptModule(){
     _prtImgIn.interrupt();
     _prtImgOut.interrupt();
     _configPort.interrupt();
+    _prtHEncsIn.interrupt();
     return true;
+}
+
+void HeadEncoderPort::onRead(yarp::os::Bottle &h_encs) {
+    yarp::os::Stamp s;
+    this->getEnvelope(s);
+    double time = s.getTime();
+    if(time !=0) {
+        _prtImgIn->setHeadEncoders(time, h_encs);
+    }
+
 }
 
 bool CamCalibModule::updateModule()
 {
-    Bottle* h_encs = _prtHEncsIn.read(false); //head encoders
     Bottle* t_encs = _prtTEncsIn.read(false); //torso encoders
     Bottle* imu = _prtImuIn.read(false); //imu data
-
-    if (h_encs!=NULL) {
-        yarp::os::Stamp s;
-        _prtHEncsIn.getEnvelope(s);
-        double time = s.getTime();
-        if(time !=0) {
-            _prtImgIn.setHeadEncoders(time, *h_encs);
-        }
-    }
 
     if (t_encs!=NULL) _prtImgIn.setTorsoEncoders(*t_encs);
     if (imu!=NULL)    _prtImgIn.setImuData(*imu);

@@ -67,6 +67,13 @@ public:
 };
 
 
+class HeadEncoderPort : public yarp::os::BufferedPort<yarp::os::Bottle> {
+private:
+    virtual void onRead(yarp::os::Bottle &b);
+public:
+    CamCalibPort *_prtImgIn;
+};
+
 /**
  *
  * Camera Calibration Module class
@@ -81,7 +88,7 @@ private:
     CamCalibPort    _prtImgIn;
     yarp::os::Port  _prtImgOut;
     yarp::os::Port  _configPort;
-    yarp::os::BufferedPort<yarp::os::Bottle>  _prtHEncsIn;
+    HeadEncoderPort _prtHEncsIn;
     yarp::os::BufferedPort<yarp::os::Bottle>  _prtTEncsIn;
     yarp::os::BufferedPort<yarp::os::Bottle>  _prtImuIn;
     ICalibTool *    _calibTool;
