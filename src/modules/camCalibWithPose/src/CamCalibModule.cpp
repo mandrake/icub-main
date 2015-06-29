@@ -10,6 +10,10 @@
 #include <yarp/math/Math.h>
 #include <yarp/os/Stamp.h>
 
+
+#define USE_INERTIAL 1
+
+
 using namespace std;
 using namespace yarp::os;
 using namespace yarp::math;
@@ -39,7 +43,9 @@ void CamCalibPort::onRead(ImageOf<PixelRgb> &yrpImgIn)
 {
     double t=Time::now();
 
-    updatePose();
+    if (!updatePose()) {
+        return;
+    }
 
     // execute calibration
     if (portImgOut!=NULL)
@@ -110,19 +116,28 @@ void CamCalibPort::onRead(ImageOf<PixelRgb> &yrpImgIn)
 }
 
 
-void CamCalibPort::updatePose() {
-    yarp::os::Stamp s;
-    this->getEnvelope(s);
-    double time = s.getTime();
 
-   
+bool CamCalibPort::selectBottleFromMap(double time,
+                                       std::map<double, yarp::os::Bottle> *datamap,
+                                       yarp::os::Bottle *bottle,
+                                       bool verbose)
+{
+    if (datamap->size() == 0) {
+        return false;
+    }
+
+    std::map<double, yarp::os::Bottle>::iterator it, it_prev, it_next, it_end;
+
     m.lock();
-    std::map<double,yarp::os::Bottle>::iterator it, it_prev, it_next, it_end;
-   
-    std::map<double, yarp::os::Bottle> * datamap = &h_encs_map;
-    //std::map<double, yarp::os::Bottle> * datamap = &imu_map;
-
     it_next = datamap->lower_bound(time);
+
+    // wait until we receive a sample with a time greater than image time
+    while(it_next->first < time) {
+        m.unlock();
+        yarp::os::Time::delay(0.001);
+        m.lock();
+        it_next = datamap->lower_bound(time);
+    }
 
     it_prev = it_next;
     if(it_prev != datamap->begin()) {
@@ -136,49 +151,74 @@ void CamCalibPort::updatePose() {
         --it_end;
     }
 
-    double diff_prev = time -it_prev->first;
+    double diff_prev = time - it_prev->first;
     double diff_next = it_next->first - time;
     double diff = (diff_prev >= diff_next) ? diff_next : diff_prev;
-    double diff_end = it_end->first - time;
-    bool err_prev = ((diff_prev >= 0.0025) || (diff_prev <= -0.0025));
-    bool warn_prev = ((diff_prev >= 0.0015) || (diff_prev <= -0.0015));
-    bool err_next = ((diff_next >= 0.0025) || (diff_next <= -0.0025));
-    bool warn_next = ((diff_next >= 0.0015) || (diff_next <= -0.0015));
-    bool err_end = ((diff_end >= 0.0025) || (diff_end <= -0.0025));
-    bool warn_end = ((diff_end >= 0.0015) || (diff_end <= -0.0015));
-    bool err = ((diff >= 0.0025) || (diff <= -0.0025));
-    bool warn = ((diff >= 0.0015) || (diff <= -0.0015));
-    printf("%f, %f, %s%f%s, %f, %s%f%s, %f, %s%f%s, %s%f%s, %s%d%s\n", time,
-                                           it_prev->first,
-                                           (err_prev ? "\033[0;31m" : (warn_prev ? "\033[0;33m" : "")), diff_prev, ((err_prev||warn_prev) ? "\033[0m" : ""),
-                                           it_next->first,
-                                           (err_next ? "\033[0;31m" : (warn_next ? "\033[0;33m" : "")), diff_next, ((err_next||warn_next) ? "\033[0m" : ""),
-                                           it_end->first,
-                                           (err_end ? "\033[0;31m" : (warn_end ? "\033[0;33m" : "")), diff_end, ((err_end||warn_end) ? "\033[0m" : ""),
-                                           (err ? "\033[0;31m" : (warn ? "\033[0;33m" : "")), diff, ((err||warn) ? "\033[0m" : ""),
-                                           ((datamap->size() <= 10) ? "\033[0;31m" : ((datamap->size() <= 15) ? "\033[0;33m" : "")), datamap->size(), ((datamap->size() <= 15) ? "\033[0m" : ""));
 
-    const yarp::os::Bottle& h_encs = (diff_prev >= diff_next) ? it_next->second : it_prev->second;
-  //  const yarp::os::Bottle& h_encs = it_prev->second;
- //   const yarp::os::Bottle& h_encs = it_end->second;
+    if (verbose) {
+        double diff_end = it_end->first - time;
+        bool err_prev = ((diff_prev >= 0.0025) || (diff_prev <= -0.0025));
+        bool warn_prev = ((diff_prev >= 0.0015) || (diff_prev <= -0.0015));
+        bool err_next = ((diff_next >= 0.0025) || (diff_next <= -0.0025));
+        bool warn_next = ((diff_next >= 0.0015) || (diff_next <= -0.0015));
+        bool err_end = ((diff_end >= 0.0025) || (diff_end <= -0.0025));
+        bool warn_end = ((diff_end >= 0.0015) || (diff_end <= -0.0015));
+        bool err = ((diff >= 0.0025) || (diff <= -0.0025));
+        bool warn = ((diff >= 0.0015) || (diff <= -0.0015));
 
-    double t =  h_encs.get(3).asDouble()/180.0*M_PI; // eye tilt
-    double vs = h_encs.get(4).asDouble()/180.0*M_PI; // eye version
-    double vg = h_encs.get(5).asDouble()/180.0*M_PI; // eye vergence
+        printf("%f, %f, %s%f%s, %f, %s%f%s, %f, %s%f%s, %s%f%s, %s%zd%s    %s\n", time,
+                                               it_prev->first,
+                                               (err_prev ? "\033[0;31m" : (warn_prev ? "\033[0;33m" : "")), diff_prev, ((err_prev||warn_prev) ? "\033[0m" : ""),
+                                               it_next->first,
+                                               (err_next ? "\033[0;31m" : (warn_next ? "\033[0;33m" : "")), diff_next, ((err_next||warn_next) ? "\033[0m" : ""),
+                                               it_end->first,
+                                               (err_end ? "\033[0;31m" : (warn_end ? "\033[0;33m" : "")), diff_end, ((err_end||warn_end) ? "\033[0m" : ""),
+                                               (err ? "\033[0;31m" : (warn ? "\033[0;33m" : "")), diff, ((err||warn) ? "\033[0m" : ""),
+                                               ((datamap->size() <= 10) ? "\033[0;31m" : ((datamap->size() <= 15) ? "\033[0;33m" : "")), datamap->size(), ((datamap->size() <= 15) ? "\033[0m" : ""),
+                                               ((diff > maxDelay) ? "\033[0;31mSKIPPED\033[0m" : "OK"));
+    }
+
+    if (diff > maxDelay) {
+        m.unlock();
+        return false;
+    }
+
+    *bottle = (diff_prev >= diff_next) ? it_next->second : it_prev->second;
+
+    if (it_prev != datamap->begin()) {
+        datamap->erase(datamap->begin(), it_prev);
+    }
+    m.unlock();
+
+    return true;
+}
+
+
+bool CamCalibPort::updatePose() {
+
+    yarp::os::Stamp s;
+    this->getEnvelope(s);
+    double time = s.getTime();
+
+    if (!selectBottleFromMap(time, &h_encs_map, &h_encs, true)) {
+        return false;
+    }
+    if (!selectBottleFromMap(time, &imu_map, &imu, false)) {
+        return false;
+    }
 
     double ix = -h_encs.get(1).asDouble()/180.0*M_PI; // neck roll
     double iy = h_encs.get(0).asDouble()/180.0*M_PI;  // neck pitch
     double iz = h_encs.get(2).asDouble()/180.0*M_PI;  // neck yaw
 
+    double t =  h_encs.get(3).asDouble()/180.0*M_PI;  // eye tilt
+    double vs = h_encs.get(4).asDouble()/180.0*M_PI;  // eye version
+    double vg = h_encs.get(5).asDouble()/180.0*M_PI;  // eye vergence
 
-    // const yarp::os::Bottle& imu = (diff_prev >= diff_next) ? it_next->second : it_prev->second;
-     yarp::os::Bottle imu; imu.addDouble (0);imu.addDouble (0);imu.addDouble (0);
     double imu_x = imu.get(0).asDouble()/180.0*M_PI; // imu roll
     double imu_y = imu.get(1).asDouble()/180.0*M_PI; // imu pitch
     double imu_z = imu.get(2).asDouble()/180.0*M_PI; // imu yaw
 
-    datamap->erase(datamap->begin(), it_next);
-    m.unlock();
 
     yarp::sig::Vector neck_roll_vector(3);
     neck_roll_vector(0) = ix;
@@ -201,13 +241,11 @@ void CamCalibPort::updatePose() {
     yarp::sig::Matrix neck_dcm = (neck_pitch_dcm * neck_roll_dcm) * neck_yaw_dcm;
 
 
-
     yarp::sig::Vector eye_pitch_vector(3);
     eye_pitch_vector(0) = 0;
     eye_pitch_vector(1) = t;
     eye_pitch_vector(2) = 0;
     yarp::sig::Matrix eye_pitch_dcm = yarp::math::rpy2dcm(eye_pitch_vector);
-
 
     yarp::sig::Vector eye_yaw_vector(3);
     eye_yaw_vector(0) = 0;
@@ -222,14 +260,11 @@ void CamCalibPort::updatePose() {
 
     yarp::sig::Matrix eye_dcm = eye_pitch_dcm * eye_yaw_dcm;
 
-
-
-
     yarp::sig::Matrix T = neck_dcm * eye_dcm;
+
+#if !USE_INERTIAL
     yarp::sig::Vector v = yarp::math::dcm2rpy(T);
-
-
-
+#endif
 
 
     yarp::sig::Vector imu_roll_vector(3);
@@ -250,18 +285,22 @@ void CamCalibPort::updatePose() {
     imu_yaw_vector(2) = imu_z;
     yarp::sig::Matrix imu_yaw_dcm = yarp::math::rpy2dcm(imu_yaw_vector);
 
-    yarp::sig::Matrix imu_dcm = (imu_yaw_dcm * imu_roll_dcm) * imu_pitch_dcm;
+//  Aeronautic convention (iCub)
+//    yarp::sig::Matrix imu_dcm = (imu_yaw_dcm * imu_roll_dcm) * imu_pitch_dcm;
 
-//   uncomment this to use inertial
-    //yarp::sig::Vector v = yarp::math::dcm2rpy(imu_dcm);
-    //v = yarp::math::dcm2rpy(imu_dcm);
+//  Robotic convention (gazebo)
+    yarp::sig::Matrix imu_dcm = (imu_yaw_dcm * imu_pitch_dcm) * imu_roll_dcm;
 
+#if USE_INERTIAL
+    yarp::sig::Vector v = yarp::math::dcm2rpy(imu_dcm);
+    v = yarp::math::dcm2rpy(imu_dcm);
+#endif
 
-#if 0
+#if 1
     printf("\n--------------------------------------\n");
     printf ("%+03.3f %+03.3f %+03.3f", neck_roll_vector(0)*180.0/M_PI, neck_pitch_vector(1)*180.0/M_PI, neck_yaw_vector(2)*180.0/M_PI);
     printf ("  >>>>>>>> %+03.3f %+03.3f %+03.3f", v(0)*180.0/M_PI,v(1)*180.0/M_PI,v(2)*180.0/M_PI);
-    printf ("  >>>>>>>> %+03.3f %+03.3f %+03.3f", imu_r(0)*180.0/M_PI, imu_p(1)*180.0/M_PI, imu_y(2)*180.0/M_PI);
+    printf ("  >>>>>>>> %+03.3f %+03.3f %+03.3f", imu_roll_vector(0)*180.0/M_PI, imu_pitch_vector(1)*180.0/M_PI, imu_yaw_vector(2)*180.0/M_PI);
 
     printf("\n--------------------------------------\n");
     printf("encoders                  imu                       diff\n");
@@ -288,6 +327,8 @@ void CamCalibPort::updatePose() {
     roll = v(0)*180.0/M_PI;
     pitch = v(1)*180.0/M_PI;
     yaw = v(2)*180.0/M_PI;
+
+    return true;
 }
 
 
@@ -304,6 +345,8 @@ bool CamCalibModule::configure(yarp::os::ResourceFinder &rf){
 
     ConstString str = rf.check("name", Value("/camCalib"), "module name (string)").asString();
     setName(str.c_str()); // modulePortName
+
+    double maxDelay = rf.check("maxDelay", Value(0.010), "Max delay between image and encoders").asDouble();
 
     // pass configuration over to bottle
     Bottle botConfig(rf.toString().c_str());
@@ -360,6 +403,7 @@ bool CamCalibModule::configure(yarp::os::ResourceFinder &rf){
     _prtImgIn.setPointers(&_prtImgOut,_calibTool);
     _prtImgIn.setVerbose(rf.check("verbose"));
     _prtImgIn.setLeftEye((strGroup == "CAMERA_CALIBRATION_LEFT") ? true : false);
+    _prtImgIn.setMaxDelay(maxDelay);
     _prtImgIn.useCallback();
     _prtImgOut.open(getName("/out"));
     _configPort.open(getName("/conf"));
@@ -404,7 +448,6 @@ void HeadEncoderPort::onRead(yarp::os::Bottle &h_encs) {
     if(time !=0) {
         _prtImgIn->setHeadEncoders(time, h_encs);
     }
-
 }
 
 bool CamCalibModule::updateModule()
@@ -412,8 +455,23 @@ bool CamCalibModule::updateModule()
     Bottle* t_encs = _prtTEncsIn.read(false); //torso encoders
     Bottle* imu = _prtImuIn.read(false); //imu data
 
-    if (t_encs!=NULL) _prtImgIn.setTorsoEncoders(*t_encs);
-    if (imu!=NULL)    _prtImgIn.setImuData(0,*imu);
+    if (t_encs!=NULL) {
+        yarp::os::Stamp s;
+        _prtTEncsIn.getEnvelope(s);
+        double time = s.getTime();
+        if(time !=0) {
+            _prtImgIn.setTorsoEncoders(time, *t_encs);
+        }
+    }
+
+    if (imu!=NULL) {
+        yarp::os::Stamp s;
+        _prtImuIn.getEnvelope(s);
+        double time = s.getTime();
+        if(time !=0) {
+            _prtImgIn.setImuData(time,*imu);
+        }
+    }
 
     return true;
 }

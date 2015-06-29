@@ -44,15 +44,19 @@ private:
     double yaw;
     yarp::os::Mutex m;
     bool leftEye; // true for left eye, false for right eye
+    double maxDelay;
 
     std::map<double, yarp::os::Bottle> h_encs_map;
     std::map<double, yarp::os::Bottle> imu_map;
-//    yarp::os::Bottle h_encs ;
-    yarp::os::Bottle t_encs ;
- //   yarp::os::Bottle imu ;
+    yarp::os::Bottle h_encs;
+    yarp::os::Bottle t_encs;
+    yarp::os::Bottle imu;
 
-    void updatePose();
-
+    bool updatePose();
+    bool selectBottleFromMap(double time,
+                             std::map<double, yarp::os::Bottle> *datamap,
+                             yarp::os::Bottle *bottle,
+                             bool verbose = false);
     virtual void onRead(yarp::sig::ImageOf<yarp::sig::PixelRgb> &yrpImgIn);
 
 public:
@@ -62,9 +66,10 @@ public:
     void setPointers(yarp::os::Port *_portImgOut, ICalibTool *_calibTool);
     void setVerbose(const bool sw) { verbose=sw; }
     void setLeftEye(bool eye) { leftEye = eye; }
+    void setMaxDelay(double delay) { maxDelay = delay; }
 
     void setHeadEncoders(double time, const yarp::os::Bottle &h_encs) { m.lock(); h_encs_map[time] = h_encs; m.unlock(); }
-    void setTorsoEncoders(const yarp::os::Bottle &t_encs) { m.lock(); this->t_encs = t_encs; m.unlock(); }
+    void setTorsoEncoders(double time, const yarp::os::Bottle &t_encs) { m.lock(); this->t_encs = t_encs; m.unlock(); }
     void setImuData(double time, const yarp::os::Bottle &imu) { m.lock(); imu_map[time] = imu; m.unlock(); }
 };
 
