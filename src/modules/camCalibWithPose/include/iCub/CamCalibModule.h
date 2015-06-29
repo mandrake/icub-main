@@ -43,12 +43,13 @@ private:
     double pitch;
     double yaw;
     yarp::os::Mutex m;
-    double pippo;
+    bool leftEye; // true for left eye, false for right eye
 
     std::map<double, yarp::os::Bottle> h_encs_map;
+    std::map<double, yarp::os::Bottle> imu_map;
 //    yarp::os::Bottle h_encs ;
     yarp::os::Bottle t_encs ;
-    yarp::os::Bottle imu ;
+ //   yarp::os::Bottle imu ;
 
     void updatePose();
 
@@ -60,10 +61,11 @@ public:
     void setSaturation(double satVal);
     void setPointers(yarp::os::Port *_portImgOut, ICalibTool *_calibTool);
     void setVerbose(const bool sw) { verbose=sw; }
+    void setLeftEye(bool eye) { leftEye = eye; }
 
     void setHeadEncoders(double time, const yarp::os::Bottle &h_encs) { m.lock(); h_encs_map[time] = h_encs; m.unlock(); }
     void setTorsoEncoders(const yarp::os::Bottle &t_encs) { m.lock(); this->t_encs = t_encs; m.unlock(); }
-    void setImuData(const yarp::os::Bottle &imu) { m.lock(); this->imu = imu; m.unlock(); }
+    void setImuData(double time, const yarp::os::Bottle &imu) { m.lock(); imu_map[time] = imu; m.unlock(); }
 };
 
 

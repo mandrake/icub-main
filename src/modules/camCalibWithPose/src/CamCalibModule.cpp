@@ -115,37 +115,52 @@ void CamCalibPort::updatePose() {
     this->getEnvelope(s);
     double time = s.getTime();
 
-
+   
     m.lock();
-    std::map<double,yarp::os::Bottle>::iterator it, it_prev, it_next;
-    it_next = h_encs_map.lower_bound(time);
+    std::map<double,yarp::os::Bottle>::iterator it, it_prev, it_next, it_end;
+   
+    std::map<double, yarp::os::Bottle> * datamap = &h_encs_map;
+    //std::map<double, yarp::os::Bottle> * datamap = &imu_map;
+
+    it_next = datamap->lower_bound(time);
 
     it_prev = it_next;
-    if(it_prev != h_encs_map.begin()) {
+    if(it_prev != datamap->begin()) {
         --it_prev;
     }
-    if(it_next == h_encs_map.end() && it_next != h_encs_map.begin()) {
+    if(it_next == datamap->end() && it_next != datamap->begin()) {
         --it_next;
+    }
+    it_end = datamap->end();
+    if(it_end != datamap->begin()) {
+        --it_end;
     }
 
     double diff_prev = time -it_prev->first;
     double diff_next = it_next->first - time;
     double diff = (diff_prev >= diff_next) ? diff_next : diff_prev;
-
+    double diff_end = it_end->first - time;
     bool err_prev = ((diff_prev >= 0.0025) || (diff_prev <= -0.0025));
     bool warn_prev = ((diff_prev >= 0.0015) || (diff_prev <= -0.0015));
     bool err_next = ((diff_next >= 0.0025) || (diff_next <= -0.0025));
     bool warn_next = ((diff_next >= 0.0015) || (diff_next <= -0.0015));
+    bool err_end = ((diff_end >= 0.0025) || (diff_end <= -0.0025));
+    bool warn_end = ((diff_end >= 0.0015) || (diff_end <= -0.0015));
     bool err = ((diff >= 0.0025) || (diff <= -0.0025));
     bool warn = ((diff >= 0.0015) || (diff <= -0.0015));
-    printf("%f, %f, %s%f%s, %f, %s%f%s,               %s%f%s\n", time,
+    printf("%f, %f, %s%f%s, %f, %s%f%s, %f, %s%f%s, %s%f%s, %s%d%s\n", time,
                                            it_prev->first,
                                            (err_prev ? "\033[0;31m" : (warn_prev ? "\033[0;33m" : "")), diff_prev, ((err_prev||warn_prev) ? "\033[0m" : ""),
                                            it_next->first,
                                            (err_next ? "\033[0;31m" : (warn_next ? "\033[0;33m" : "")), diff_next, ((err_next||warn_next) ? "\033[0m" : ""),
-                                           (err ? "\033[0;31m" : (warn ? "\033[0;33m" : "")), diff, ((err||warn) ? "\033[0m" : ""));
+                                           it_end->first,
+                                           (err_end ? "\033[0;31m" : (warn_end ? "\033[0;33m" : "")), diff_end, ((err_end||warn_end) ? "\033[0m" : ""),
+                                           (err ? "\033[0;31m" : (warn ? "\033[0;33m" : "")), diff, ((err||warn) ? "\033[0m" : ""),
+                                           ((datamap->size() <= 10) ? "\033[0;31m" : ((datamap->size() <= 15) ? "\033[0;33m" : "")), datamap->size(), ((datamap->size() <= 15) ? "\033[0m" : ""));
 
     const yarp::os::Bottle& h_encs = (diff_prev >= diff_next) ? it_next->second : it_prev->second;
+  //  const yarp::os::Bottle& h_encs = it_prev->second;
+ //   const yarp::os::Bottle& h_encs = it_end->second;
 
     double t =  h_encs.get(3).asDouble()/180.0*M_PI; // eye tilt
     double vs = h_encs.get(4).asDouble()/180.0*M_PI; // eye version
@@ -155,11 +170,14 @@ void CamCalibPort::updatePose() {
     double iy = h_encs.get(0).asDouble()/180.0*M_PI;  // neck pitch
     double iz = h_encs.get(2).asDouble()/180.0*M_PI;  // neck yaw
 
+
+    // const yarp::os::Bottle& imu = (diff_prev >= diff_next) ? it_next->second : it_prev->second;
+     yarp::os::Bottle imu; imu.addDouble (0);imu.addDouble (0);imu.addDouble (0);
     double imu_x = imu.get(0).asDouble()/180.0*M_PI; // imu roll
     double imu_y = imu.get(1).asDouble()/180.0*M_PI; // imu pitch
     double imu_z = imu.get(2).asDouble()/180.0*M_PI; // imu yaw
 
-    h_encs_map.erase(h_encs_map.begin(), it_next);
+    datamap->erase(datamap->begin(), it_next);
     m.unlock();
 
     yarp::sig::Vector neck_roll_vector(3);
@@ -195,11 +213,11 @@ void CamCalibPort::updatePose() {
     eye_yaw_vector(0) = 0;
     eye_yaw_vector(1) = 0;
     eye_yaw_vector(2) = 0;
-//    if (strGroup == "CAMERA_CALIBRATION_LEFT") {
-//        eye_yaw_vector(2) = -(vs + vg/2);
-//    } else {
-//        eye_yaw_vector(2) = -(vs - vg / 2);
-//    }
+    if (leftEye) {
+        eye_yaw_vector(2) = -(vs + vg/2);
+    } else {
+        eye_yaw_vector(2) = -(vs - vg / 2);
+    }
     yarp::sig::Matrix eye_yaw_dcm = yarp::math::rpy2dcm(eye_yaw_vector);
 
     yarp::sig::Matrix eye_dcm = eye_pitch_dcm * eye_yaw_dcm;
@@ -341,11 +359,13 @@ bool CamCalibModule::configure(yarp::os::ResourceFinder &rf){
     _prtImgIn.open(getName("/in"));
     _prtImgIn.setPointers(&_prtImgOut,_calibTool);
     _prtImgIn.setVerbose(rf.check("verbose"));
+    _prtImgIn.setLeftEye((strGroup == "CAMERA_CALIBRATION_LEFT") ? true : false);
     _prtImgIn.useCallback();
     _prtImgOut.open(getName("/out"));
     _configPort.open(getName("/conf"));
     _prtHEncsIn.open(getName("/head_encs/in"));
     _prtHEncsIn._prtImgIn = &_prtImgIn;
+    _prtHEncsIn.setStrict();
     _prtHEncsIn.useCallback();
     _prtTEncsIn.open(getName("/torso_encs/in"));
     _prtImuIn.open(getName("/imu/in"));
@@ -393,7 +413,7 @@ bool CamCalibModule::updateModule()
     Bottle* imu = _prtImuIn.read(false); //imu data
 
     if (t_encs!=NULL) _prtImgIn.setTorsoEncoders(*t_encs);
-    if (imu!=NULL)    _prtImgIn.setImuData(*imu);
+    if (imu!=NULL)    _prtImgIn.setImuData(0,*imu);
 
     return true;
 }
