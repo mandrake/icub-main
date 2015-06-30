@@ -52,7 +52,7 @@ private:
     yarp::os::Bottle t_encs;
     yarp::os::Bottle imu;
 
-    bool updatePose();
+    bool updatePose(double time);
     bool selectBottleFromMap(double time,
                              std::map<double, yarp::os::Bottle> *datamap,
                              yarp::os::Bottle *bottle,
@@ -76,10 +76,19 @@ public:
 
 class HeadEncoderPort : public yarp::os::BufferedPort<yarp::os::Bottle> {
 private:
-    virtual void onRead(yarp::os::Bottle &b);
+    virtual void onRead(yarp::os::Bottle &h_encs);
 public:
     CamCalibPort *_prtImgIn;
 };
+
+class ImuPort : public yarp::os::BufferedPort<yarp::os::Bottle> {
+private:
+    virtual void onRead(yarp::os::Bottle &imu);
+public:
+    CamCalibPort *_prtImgIn;
+    int imuCount;
+};
+
 
 /**
  *
@@ -97,7 +106,7 @@ private:
     yarp::os::Port  _configPort;
     HeadEncoderPort _prtHEncsIn;
     yarp::os::BufferedPort<yarp::os::Bottle>  _prtTEncsIn;
-    yarp::os::BufferedPort<yarp::os::Bottle>  _prtImuIn;
+    ImuPort _prtImuIn;
     ICalibTool *    _calibTool;
     std::string strGroup;
 

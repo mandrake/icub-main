@@ -13,19 +13,24 @@
   <node>localhost</node>
 </module>
 <module>
+  <name>yarpview</name>
+  <parameters>--name /icubGazeboSim/randazview/left --x 0 --y 0 --synch</parameters>
+  <node>localhost</node>
+</module>
+<module>
+  <name>yarpview</name>
+  <parameters>--name /icubGazeboSim/randazview/right --x 320 --y 0 --synch</parameters>
+  <node>localhost</node>
+</module>
+<module>
   <name>positionDirectControl</name>
   <parameters>--robot icubGazeboSim --part head --joints "(0 1 2)"</parameters> 
-  <node>localhost</node>
+  <node>/iitrbcsws120</node>
 </module>
 <module>
-  <name>yarpview</name>
-  <parameters>--name /icubGazeboSim/randazview/left --x 0 --y 0 --p 50 --compact</parameters>
-  <node>localhost</node>
-</module>
-<module>
-  <name>yarpview</name>
-  <parameters>--name /icubGazeboSim/randazview/right --x 320 --y 0 --p 50 --compact</parameters>
-  <node>localhost</node>
+  <name>yarpdev</name>
+  <parameters>--device ovrheadset --hfov 105 --w 960 --h 720 --imagepose</parameters> 
+  <node>/iitrbcsws120</node>
 </module>
 <connection>
   <from>/icubGazeboSim/cam/left</from>
@@ -53,23 +58,18 @@
   <protocol>udp</protocol>
 </connection>
 <connection>
-  <from>/icubGazeboSim/torso/state:o</from>
-  <to>/icubGazeboSim/camcalibPose/right/torso_encs/in</to>
-  <protocol>udp</protocol>
-</connection>
-<connection>
   <from>/icubGazeboSim/head/state:o</from>
   <to>/icubGazeboSim/camcalibPose/left/head_encs/in</to>
   <protocol>udp</protocol>
 </connection>
 <connection>
   <from>/icubGazeboSim/torso/state:o</from>
-  <to>/icubGazeboSim/camcalibPose/left/torso_encs/in</to>
+  <to>/icubGazeboSim/camcalibPose/right/torso_encs/in</to>
   <protocol>udp</protocol>
 </connection>
 <connection>
-  <from>/icubGazeboSim/inertial</from>
-  <to>/icubGazeboSim/camcalibPose/left/imu/in</to>
+  <from>/icubGazeboSim/torso/state:o</from>
+  <to>/icubGazeboSim/camcalibPose/left/torso_encs/in</to>
   <protocol>udp</protocol>
 </connection>
 <connection>
