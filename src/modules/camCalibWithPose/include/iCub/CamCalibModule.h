@@ -71,6 +71,8 @@ public:
     void setHeadEncoders(double time, const yarp::os::Bottle &h_encs) { m.lock(); h_encs_map[time] = h_encs; m.unlock(); }
     void setTorsoEncoders(double time, const yarp::os::Bottle &t_encs) { m.lock(); this->t_encs = t_encs; m.unlock(); }
     void setImuData(double time, const yarp::os::Bottle &imu) { m.lock(); imu_map[time] = imu; m.unlock(); }
+
+    yarp::os::BufferedPort<yarp::os::Bottle> rpyPort;
 };
 
 

@@ -43,84 +43,90 @@ void CamCalibPort::onRead(ImageOf<PixelRgb> &yrpImgIn)
 {
     double t=Time::now();
 
-/*
-    unsigned char *pixel = yrpImgIn.getPixelAddress(0, 0);
-    double *stamp = reinterpret_cast<double*>(pixel);
-    double realTime = stamp[0];
-    double realRoll = stamp[1];
-    double realPitch = stamp[2];
-    double realYaw = stamp[3];
-*/
     yarp::os::Stamp s;
     this->getEnvelope(s);
     double time = s.getTime();
-
-/*
-    if (time != realTime) {
-        yWarning() << "Real time:" << realTime << "Time:" << time;
-    }
-*/
-    
 
     if (!updatePose(time)) {
         return;
     }
 
 
-/*
-//    roll += (71.3785 - 71.3791);
-//    pitch += (0.159813 - 0.164035);
-    yaw += (-0.255565 - -0.166343); 
+    unsigned char *pixel = yrpImgIn.getPixelAddress(0, 0);
+    double *stamp = reinterpret_cast<double*>(pixel);
+    double backdoorTime = stamp[0];
+    double backdoorRoll = stamp[1];
+    double backdoorPitch = stamp[2];
+    double backdoorYaw = stamp[3];
 
+    if (time != backdoorTime) {
+        yWarning() << "Backdoor time:" << backdoorTime << "Imu time:" << time << "diff:" << (backdoorTime - time);
+    }
+
+    Bottle& b = rpyPort.prepare();
+    b.clear();
+    b.addDouble(roll);
+    b.addDouble(pitch);
+    b.addDouble(yaw);
+    b.addDouble(backdoorRoll);
+    b.addDouble(backdoorPitch);
+    b.addDouble(backdoorYaw);
+    b.addDouble(backdoorRoll - roll);
+    b.addDouble(backdoorPitch - pitch);
+    b.addDouble(backdoorYaw - yaw);
+    rpyPort.write();
+
+#if 0
     yarp::sig::Vector roll_vector(3);
-    roll_vector(0) = roll;
+    roll_vector(0) = roll/180.0*M_PI;
     roll_vector(1) = 0;
     roll_vector(2) = 0;
     yarp::sig::Matrix roll_dcm = yarp::math::rpy2dcm(roll_vector);
 
     yarp::sig::Vector pitch_vector(3);
     pitch_vector(0) = 0;
-    pitch_vector(1) = pitch;
+    pitch_vector(1) = pitch/180.0*M_PI;
     pitch_vector(2) = 0;
     yarp::sig::Matrix pitch_dcm = yarp::math::rpy2dcm(pitch_vector);
 
     yarp::sig::Vector yaw_vector(3);
     yaw_vector(0) = 0;
     yaw_vector(1) = 0;
-    yaw_vector(2) = yaw;
+    yaw_vector(2) = yaw/180.0*M_PI;
     yarp::sig::Matrix yaw_dcm = yarp::math::rpy2dcm(yaw_vector);
 
     yarp::sig::Matrix dcm = (yaw_dcm * pitch_dcm) * roll_dcm;
 
-
     yarp::sig::Vector r_roll_vector(3);
-    r_roll_vector(0) = realRoll;
+    r_roll_vector(0) = backdoorRoll/180.0*M_PI;
     r_roll_vector(1) = 0;
     r_roll_vector(2) = 0;
     yarp::sig::Matrix r_roll_dcm = yarp::math::rpy2dcm(r_roll_vector);
 
     yarp::sig::Vector r_pitch_vector(3);
     r_pitch_vector(0) = 0;
-    r_pitch_vector(1) = realPitch;
+    r_pitch_vector(1) = backdoorPitch/180.0*M_PI;
     r_pitch_vector(2) = 0;
     yarp::sig::Matrix r_pitch_dcm = yarp::math::rpy2dcm(r_pitch_vector);
 
     yarp::sig::Vector r_yaw_vector(3);
     r_yaw_vector(0) = 0;
     r_yaw_vector(1) = 0;
-    r_yaw_vector(2) = realYaw;
+    r_yaw_vector(2) = backdoorYaw/180.0*M_PI;
 
     yarp::sig::Matrix r_yaw_dcm = yarp::math::rpy2dcm(r_yaw_vector);
 
     yarp::sig::Matrix r_dcm = (r_yaw_dcm * r_pitch_dcm) * r_roll_dcm;
 
+
+    printf("backdoor                  imu                       diff\n");
     for(int i = 0; i <= 2; ++i) {
         for(int j = 0; j <= 2; ++j) {
-            printf("%+03.3f ", dcm(i,j));
+            printf("%+03.3f ", r_dcm(i,j));
         }
         printf("     ");
         for(int j = 0; j <= 2; ++j) {
-            printf("%+03.3f ", r_dcm(i,j));
+            printf("%+03.3f ", dcm(i,j));
         }
         printf("     ");
         for(int j = 0; j <= 2; ++j) {
@@ -135,20 +141,18 @@ void CamCalibPort::onRead(ImageOf<PixelRgb> &yrpImgIn)
 
 
 
-
-    if (roll != realRoll) {
-        yWarning() << "Real roll:" << realRoll << "Roll:" << roll;
+    if (roll != backdoorRoll) {
+        yWarning() << "backdoor roll:" << backdoorRoll << "Imu roll:" << roll << "diff:" << (backdoorRoll - roll);
     }
 
-    if (pitch != realPitch) {
-        yWarning() << "Real pitch:" << realPitch << "Pitch:" << pitch;
+    if (pitch != backdoorPitch) {
+        yWarning() << "backdoor pitch:" << backdoorPitch << "Imu pitch:" << pitch << "diff:" << (backdoorPitch - pitch);
     }
 
-    if (yaw != realYaw) {
-        yWarning() << "Real yaw:" << realYaw << "Yaw:" << yaw;
+    if (yaw != backdoorYaw) {
+        yWarning() << "backdoor yaw:" << backdoorYaw << "Imu yaw:" << yaw << "diff:" << (backdoorYaw - yaw);
     }
-
-*/
+#endif
 
 
 
@@ -380,7 +384,7 @@ bool CamCalibPort::updatePose(double time)
     yarp::sig::Vector v = yarp::math::dcm2rpy(T);
 #endif
 
-
+/*
     yarp::sig::Vector imu_roll_vector(3);
     imu_roll_vector(0) = imu_x;
     imu_roll_vector(1) = 0;
@@ -398,16 +402,17 @@ bool CamCalibPort::updatePose(double time)
     imu_yaw_vector(1) = 0;
     imu_yaw_vector(2) = imu_z;
     yarp::sig::Matrix imu_yaw_dcm = yarp::math::rpy2dcm(imu_yaw_vector);
+*/
 
 //  Aeronautic convention (iCub)
-    yarp::sig::Matrix imu_dcm = (imu_yaw_dcm * imu_roll_dcm) * imu_pitch_dcm;
+//    yarp::sig::Matrix imu_dcm = (imu_yaw_dcm * imu_roll_dcm) * imu_pitch_dcm;
 
 //  Robotic convention (gazebo)
 //    yarp::sig::Matrix imu_dcm = (imu_yaw_dcm * imu_pitch_dcm) * imu_roll_dcm;
 
 #if USE_INERTIAL
-    yarp::sig::Vector v = yarp::math::dcm2rpy(imu_dcm);
-    v = yarp::math::dcm2rpy(imu_dcm);
+//    yarp::sig::Vector v = yarp::math::dcm2rpy(imu_dcm);
+//    v = yarp::math::dcm2rpy(imu_dcm);
 #endif
 
 #if 0
@@ -438,9 +443,13 @@ bool CamCalibPort::updatePose(double time)
     printf("\n--------------------------------------\n");
 #endif
 
-    roll = v(0)*180.0/M_PI;
-    pitch = v(1)*180.0/M_PI;
-    yaw = v(2)*180.0/M_PI;
+//    roll = v(0)*180.0/M_PI;
+//    pitch = v(1)*180.0/M_PI;
+//    yaw = v(2)*180.0/M_PI;
+
+    roll = imu_x*180.0/M_PI;
+    pitch = imu_y*180.0/M_PI;
+    yaw = imu_z*180.0/M_PI;
 
     return true;
 }
@@ -533,6 +542,8 @@ bool CamCalibModule::configure(yarp::os::ResourceFinder &rf){
     _prtImuIn.useCallback();
     attach(_configPort);
     fflush(stdout);
+
+    _prtImgIn.rpyPort.open(getName("/rpy"));
 
     return true;
 }
