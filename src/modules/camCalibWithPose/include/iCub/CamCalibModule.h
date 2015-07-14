@@ -58,6 +58,16 @@ private:
                              yarp::os::Bottle *bottle,
                              bool verbose = false);
     virtual void onRead(yarp::sig::ImageOf<yarp::sig::PixelRgb> &yrpImgIn);
+public:
+    int filter_enable;
+    double cf1;
+    double cf2;
+    double r_xv[2];
+    double p_xv[2];
+    double y_xv[2];
+    double r_yv[2];
+    double p_yv[2];
+    double y_yv[2];
 
 public:
     CamCalibPort();

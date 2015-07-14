@@ -1,0 +1,101 @@
+<application>
+<name>Calib Cameras with pose icub03</name>
+<dependencies>
+</dependencies> 
+<module>
+  <name>camCalibWithPose</name>
+  <parameters>--context cameraCalibration --from icubEyes.ini --group CAMERA_CALIBRATION_LEFT --name /icub/camcalibPose/left</parameters>  
+  <node>localhost</node>
+</module>
+<module>
+  <name>camCalibWithPose</name>
+  <parameters>--context cameraCalibration --from icubEyes.ini --group CAMERA_CALIBRATION_RIGHT --name /icub/camcalibPose/right</parameters> 
+  <node>localhost</node>
+</module>
+<module>
+  <name>yarpview</name>
+  <parameters>--name /icub/randazview/left --x 0 --y 0 --synch</parameters>
+  <node>localhost</node>
+</module>
+<module>
+  <name>yarpview</name>
+  <parameters>--name /icub/randazview/right --x 320 --y 0 --synch</parameters>
+  <node>localhost</node>
+</module>
+<module>
+  <name>positionDirectControl</name>
+  <parameters>--robot icub --part head --joints "(0 1 2)"</parameters> 
+  <node>localhost</node>
+</module>
+<module>
+  <name>yarpdev</name>
+  <parameters>--device ovrheadset --hfov 105 --w 960 --h 720 --imagepose</parameters> 
+  <node>/iitrbcsws120</node>
+</module>
+<connection>
+  <from>/icub/camcalib/left/out</from>
+  <to>/icub/camcalibPose/left/in</to>
+  <protocol>udp</protocol>
+</connection>
+<connection>
+  <from>/icub/camcalib/right/out</from>
+  <to>/icub/camcalibPose/right/in</to>
+  <protocol>udp</protocol>
+</connection>
+<connection>
+  <from>/icub/inertial</from>
+  <to>/icub/camcalibPose/left/imu/in</to>
+  <protocol>udp</protocol>
+</connection>
+<connection>
+  <from>/icub/inertial</from>
+  <to>/icub/camcalibPose/right/imu/in</to>
+  <protocol>udp</protocol>
+</connection>
+<connection>
+  <from>/icub/head/state:o</from>
+  <to>/icub/camcalibPose/right/head_encs/in</to>
+  <protocol>udp</protocol>
+</connection>
+<connection>
+  <from>/icub/head/state:o</from>
+  <to>/icub/camcalibPose/left/head_encs/in</to>
+  <protocol>udp</protocol>
+</connection>
+<connection>
+  <from>/icub/torso/state:o</from>
+  <to>/icub/camcalibPose/right/torso_encs/in</to>
+  <protocol>udp</protocol>
+</connection>
+<connection>
+  <from>/icub/torso/state:o</from>
+  <to>/icub/camcalibPose/left/torso_encs/in</to>
+  <protocol>udp</protocol>
+</connection>
+<connection>
+  <from>/icub/camcalibPose/left/out</from>
+  <to>/icub/randazview/left</to>
+  <protocol>udp</protocol>
+</connection>
+<connection>
+  <from>/icub/camcalibPose/right/out</from>
+  <to>/icub/randazview/right</to>
+  <protocol>udp</protocol>
+</connection>
+<connection>
+  <from>/oculus/headpose/orientation:o</from>
+  <to>/directPositionControl/icub/head/command:i</to>
+  <protocol>udp</protocol>
+</connection>
+<connection>
+  <from>/icub/camcalibPose/left/out</from>
+  <to>/oculus/display/left:i</to>
+  <protocol>udp</protocol>
+</connection>
+<connection>
+  <from>/icub/camcalibPose/right/out</from>
+  <to>/oculus/display/right:i</to>
+  <protocol>udp</protocol>
+</connection>
+</application>
+

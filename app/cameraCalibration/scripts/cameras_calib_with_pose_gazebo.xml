@@ -4,14 +4,15 @@
 </dependencies> 
 <module>
   <name>camCalibWithPose</name>
-  <parameters>--context cameraCalibration --from icubGazeboSimEyes_640x480.ini --group CAMERA_CALIBRATION_LEFT --name /icubGazeboSim/camcalibPose/left</parameters>  
-  <node>localhost</node>
+  <parameters>--context cameraCalibration --from icubGazeboSimEyes.ini --group CAMERA_CALIBRATION_LEFT --name /icubGazeboSim/camcalibPose/left</parameters>  
+  <node>/ciao</node>
 </module>
 <module>
   <name>camCalibWithPose</name>
-  <parameters>--context cameraCalibration --from icubGazeboSimEyes_640x480.ini --group CAMERA_CALIBRATION_RIGHT --name /icubGazeboSim/camcalibPose/right</parameters> 
-  <node>localhost</node>
+  <parameters>--context cameraCalibration --from icubGazeboSimEyes.ini --group CAMERA_CALIBRATION_RIGHT --name /icubGazeboSim/camcalibPose/right</parameters> 
+  <node>/ciao</node>
 </module>
+<!--
 <module>
   <name>yarpview</name>
   <parameters>--name /icubGazeboSim/randazview/left --x 0 --y 0 --synch</parameters>
@@ -22,6 +23,7 @@
   <parameters>--name /icubGazeboSim/randazview/right --x 320 --y 0 --synch</parameters>
   <node>localhost</node>
 </module>
+-->
 <module>
   <name>positionDirectControl</name>
   <parameters>--robot icubGazeboSim --part head --joints "(0 1 2)"</parameters> 
@@ -29,7 +31,7 @@
 </module>
 <module>
   <name>yarpdev</name>
-  <parameters>--device ovrheadset --hfov 105 --w 960 --h 720 --imagepose</parameters> 
+  <parameters>--device ovrheadset --hfov 90 --w 480 --h 360 --imagepose</parameters> 
   <node>/iitrbcsws120</node>
 </module>
 <connection>
@@ -73,16 +75,6 @@
   <protocol>udp</protocol>
 </connection>
 <connection>
-  <from>/icubGazeboSim/camcalibPose/left/out</from>
-  <to>/icubGazeboSim/randazview/left</to>
-  <protocol>udp</protocol>
-</connection>
-<connection>
-  <from>/icubGazeboSim/camcalibPose/right/out</from>
-  <to>/icubGazeboSim/randazview/right</to>
-  <protocol>udp</protocol>
-</connection>
-<connection>
   <from>/oculus/headpose/orientation:o</from>
   <to>/directPositionControl/icubGazeboSim/head/command:i</to>
   <protocol>udp</protocol>
@@ -97,5 +89,17 @@
   <to>/oculus/display/right:i</to>
   <protocol>udp</protocol>
 </connection>
+<!--
+<connection>
+  <from>/icubGazeboSim/camcalibPose/left/out</from>
+  <to>/icubGazeboSim/randazview/left</to>
+  <protocol>udp</protocol>
+</connection>
+<connection>
+  <from>/icubGazeboSim/camcalibPose/right/out</from>
+  <to>/icubGazeboSim/randazview/right</to>
+  <protocol>udp</protocol>
+</connection>
+-->
 </application>
 

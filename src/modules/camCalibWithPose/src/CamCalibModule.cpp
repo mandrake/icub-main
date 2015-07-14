@@ -11,7 +11,7 @@
 #include <yarp/os/Stamp.h>
 
 
-#define USE_INERTIAL 1
+#define USE_INERTIAL 0
 
 
 using namespace std;
@@ -25,6 +25,17 @@ CamCalibPort::CamCalibPort()
     calibTool=NULL;
 
     verbose=false;
+
+    filter_enable = 0;
+    cf1 = 10.514;
+    cf2 = 0.809;
+    r_xv[0]=r_xv[1]=0;
+    p_xv[0]=p_xv[1]=0;
+    y_xv[0]=y_xv[1]=0;
+    r_yv[0]=r_yv[1]=0;
+    p_yv[0]=p_yv[1]=0;
+    y_yv[0]=y_yv[1]=0;
+
     t0=Time::now();
 }
 
@@ -211,6 +222,7 @@ void CamCalibPort::onRead(ImageOf<PixelRgb> &yrpImgIn)
         //BufferedPort<ImageOf<PixelRgb> >::getEnvelope(stamp);
         //portImgOut->setEnvelope(stamp);
 
+        yDebug() << "ROLL =" << roll;
         Bottle pose;
         pose.addDouble(roll);
         pose.addDouble(pitch);
@@ -269,6 +281,16 @@ bool CamCalibPort::selectBottleFromMap(double time,
         }
         it_begin = datamap->begin();
 
+        int count_less = 0;
+        int count_more = 0;
+        for(std::map<double, yarp::os::Bottle>::iterator it = datamap->begin(); it != datamap->end(); ++it) {
+            if (it->first > time) {
+                ++count_more;
+            } else {
+                ++count_less;
+            }
+        }
+
         double diff_end = it_end->first - time;
         double diff_begin = time - it_begin->first;
         bool err_prev = ((diff_prev >= 0.0025) || (diff_prev <= -0.0025));
@@ -282,18 +304,21 @@ bool CamCalibPort::selectBottleFromMap(double time,
         bool err = ((diff >= 0.0025) || (diff <= -0.0025));
         bool warn = ((diff >= 0.0015) || (diff <= -0.0015));
 
-        printf("%f, %f, %s%f%s, %f, %s%f%s, %f, %s%f%s, %f, %s%f%s, %s%f%s, %s%zd%s    %s\n", time,
-                                               it_begin->first,
-                                               (err_begin ? "\033[0;31m" : (warn_begin ? "\033[0;33m" : "")), diff_begin, ((err_begin||warn_begin) ? "\033[0m" : ""),
-                                               it_prev->first,
-                                               (err_prev ? "\033[0;31m" : (warn_prev ? "\033[0;33m" : "")), diff_prev, ((err_prev||warn_prev) ? "\033[0m" : ""),
-                                               it_next->first,
-                                               (err_next ? "\033[0;31m" : (warn_next ? "\033[0;33m" : "")), diff_next, ((err_next||warn_next) ? "\033[0m" : ""),
-                                               it_end->first,
-                                               (err_end ? "\033[0;31m" : (warn_end ? "\033[0;33m" : "")), diff_end, ((err_end||warn_end) ? "\033[0m" : ""),
-                                               (err ? "\033[0;31m" : (warn ? "\033[0;33m" : "")), diff, ((err||warn) ? "\033[0m" : ""),
-                                               ((datamap->size() <= 10) ? "\033[0;31m" : ((datamap->size() <= 15) ? "\033[0;33m" : "")), datamap->size(), ((datamap->size() <= 15) ? "\033[0m" : ""),
-                                               ((diff > maxDelay) ? "\033[0;31mSKIPPED\033[0m" : "OK"));
+        printf("%f, %f, %s%f%s, %d, %f, %s%f%s, %f, %s%f%s, %f, %s%f%s, %d, %s%f%s, %s%zd%s    %s\n",
+               time,
+               it_begin->first,
+               (err_begin ? "\033[0;31m" : (warn_begin ? "\033[0;33m" : "")), diff_begin, ((err_begin||warn_begin) ? "\033[0m" : ""),
+               count_less,
+               it_prev->first,
+               (err_prev ? "\033[0;31m" : (warn_prev ? "\033[0;33m" : "")), diff_prev, ((err_prev||warn_prev) ? "\033[0m" : ""),
+               it_next->first,
+               (err_next ? "\033[0;31m" : (warn_next ? "\033[0;33m" : "")), diff_next, ((err_next||warn_next) ? "\033[0m" : ""),
+               it_end->first,
+               (err_end ? "\033[0;31m" : (warn_end ? "\033[0;33m" : "")), diff_end, ((err_end||warn_end) ? "\033[0m" : ""),
+               count_more,
+               (err ? "\033[0;31m" : (warn ? "\033[0;33m" : "")), diff, ((err||warn) ? "\033[0m" : ""),
+               ((datamap->size() <= 10) ? "\033[0;31m" : ((datamap->size() <= 15) ? "\033[0;33m" : "")), datamap->size(), ((datamap->size() <= 15) ? "\033[0m" : ""),
+               ((diff > maxDelay) ? "\033[0;31mSKIPPED\033[0m" : "OK"));
     }
 
     if (diff > maxDelay) {
@@ -301,7 +326,79 @@ bool CamCalibPort::selectBottleFromMap(double time,
         return false;
     }
 
-    *bottle = (diff_prev >= diff_next) ? it_next->second : it_prev->second;
+    if (0) {
+        yDebug() << "RIGHT EYE! UNA MERDA";
+        *bottle = (diff_prev >= diff_next) ? it_next->second : it_prev->second;
+    } else {
+        yDebug() << "LEFT EYE! TROPPO FIGO";
+
+
+        // Select previous
+//        *bottle = it_prev->second;
+
+        // Select next
+//        *bottle = it_next->second;
+
+        // Select closest
+//    *bottle = (diff_prev >= diff_next) ? it_next->second : it_prev->second;
+
+
+        bottle->clear();
+        for(int i = 0; i < it_prev->second.size(); ++i) {
+            if(i < 3) {
+                double x0 = it_prev->second.get(i).asDouble();
+                double x1 = it_next->second.get(i).asDouble();
+                double t0 = it_prev->first;
+                double t1 = it_next->first;
+                double tx = time;
+                double xx = 0;
+
+                // Linear interpolation
+                xx = x0 + (tx - t0)*(x1 - x0)/(t1 - t0);
+
+#if USE_INERTIAL
+                double v0 = it_prev->second.get(i+6).asDouble();
+                double v1 = it_next->second.get(i+6).asDouble();
+                double a = (v1 - v0) / (t1 - t0);
+
+                if (fabs(v1 - v0) > 30) {
+                    m.unlock();
+                    return false;
+               //     if (leftEye) {
+                     //   v0 = (fabs(v1) > fabs(v0)) ? xx = x0 + (tx - t0) * v0
+                     //                              : xx = x1 - (t1 - tx) * v1;
+                //    } else {
+                  //      xx = x0 + (tx - t0) * v0;
+                    //}
+                } else {
+
+                // x + vt
+                xx = x0 + (tx - t0) * v0;
+
+                // best
+            //    xx = (diff_prev >= diff_next) ? (x1 - (t1 - tx) * v1)
+            //                                  : (x0 + (tx - t0) * v0);
+
+                // mean
+            //    xx = ((x0 + (tx - t0) * v0) + (x1 - (t1 - tx) * v1)) / 2;
+
+
+
+                // x + vt + 1/2at^2
+            //    xx = x0 + (tx - t0) * v0 + a / 2 * pow((tx - t0), 2);
+            //    xx = x1 - (t1 - tx) * v1 - a / 2 * pow((t1 - tx), 2);
+            //    xx = (diff_prev >= diff_next) ? x1 - (t1 - tx) * v1 - a / 2 * pow((t1 - tx), 2)
+            //                                  : x0 + (tx - t0) * v0 + a / 2 * pow((tx - t0), 2);
+            }
+#endif
+
+                bottle->addDouble(xx);
+            } else {
+                bottle->add(it_prev->second.get(i));
+            }
+        }
+    } // left eye
+
 
     if (it_prev != datamap->begin()) {
         datamap->erase(datamap->begin(), it_prev);
@@ -314,12 +411,12 @@ bool CamCalibPort::selectBottleFromMap(double time,
 
 bool CamCalibPort::updatePose(double time)
 {
-    if (!selectBottleFromMap(time, &h_encs_map, &h_encs, false)) {
+    if (!selectBottleFromMap(time, &h_encs_map, &h_encs, true)) {
 #if !USE_INERTIAL
         return false;
 #endif
     }
-    if (!selectBottleFromMap(time, &imu_map, &imu, true)) {
+    if (!selectBottleFromMap(time, &imu_map, &imu, false)) {
 #if USE_INERTIAL
         return false;
 #endif
@@ -337,6 +434,7 @@ bool CamCalibPort::updatePose(double time)
     double imu_y = imu.get(1).asDouble()/180.0*M_PI; // imu pitch
     double imu_z = imu.get(2).asDouble()/180.0*M_PI; // imu yaw
 
+    yDebug() << ix << iy << iz;
 
     yarp::sig::Vector neck_roll_vector(3);
     neck_roll_vector(0) = ix;
@@ -443,13 +541,51 @@ bool CamCalibPort::updatePose(double time)
     printf("\n--------------------------------------\n");
 #endif
 
-//    roll = v(0)*180.0/M_PI;
-//    pitch = v(1)*180.0/M_PI;
-//    yaw = v(2)*180.0/M_PI;
+    yDebug() << v(0);
 
-    roll = imu_x*180.0/M_PI;
-    pitch = imu_y*180.0/M_PI;
-    yaw = imu_z*180.0/M_PI;
+    roll = v(0)*180.0/M_PI;
+    pitch = v(1)*180.0/M_PI;
+    yaw = v(2)*180.0/M_PI;
+
+//    yDebug() << "IMU_X =" << imu_x;
+//    roll = imu_x*180.0/M_PI;
+//    pitch = imu_y*180.0/M_PI;
+//    yaw = imu_z*180.0/M_PI;
+
+
+    if (filter_enable) {
+//        if (yaw<0) yaw=yaw+360;
+
+
+         r_xv[0] = r_xv[1];
+//         printf ("%f %f ",   r_xv[0] , r_xv[1]);
+         r_xv[1] = roll / cf1;
+//         printf ("%f %f %f ",   r_xv[1] , r_off, cf1 );
+         r_yv[0] = r_yv[1];
+//         printf ("%f %f %f ",   r_yv[0] , r_yv[1], cf2 );
+         r_yv[1] =   (r_xv[0] + r_xv[1]) + ( cf2 * r_yv[0]);
+         roll = r_yv[1];
+//         printf ("%f\n", r_off);
+
+         p_xv[0] = p_xv[1];
+         p_xv[1] = pitch / cf1;
+         p_yv[0] = p_yv[1];
+         p_yv[1] =   (p_xv[0] + p_xv[1]) + ( cf2 * p_yv[0]);
+         pitch = p_yv[1];
+
+         y_xv[0] = y_xv[1];
+         y_xv[1] = yaw / cf1;
+         y_yv[0] = y_yv[1];
+         y_yv[1] =   (y_xv[0] + y_xv[1]) + ( cf2 * y_yv[0]);
+         yaw = y_yv[1];
+    } else {
+        r_xv[0]=r_xv[1]=0;
+        p_xv[0]=p_xv[1]=0;
+        y_xv[0]=y_xv[1]=0;
+        r_yv[0]=r_yv[1]=0;
+        p_yv[0]=p_yv[1]=0;
+        y_yv[0]=y_yv[1]=0;
+ }
 
     return true;
 }
@@ -626,6 +762,19 @@ bool CamCalibModule::respond(const Bottle& command, Bottle& reply)
         
         reply.addString("ok");
     }
+    else if (command.get(0).asString()=="filt")
+    {
+        _prtImgIn.filter_enable = command.get(1).asInt();
+    }
+    else if (command.get(0).asString()=="cf1")
+    {
+         _prtImgIn.cf1 = command.get(1).asDouble();
+    }
+    else if (command.get(0).asString()=="cf2")
+    {
+        _prtImgIn.cf2 = command.get(1).asDouble();
+    }
+
     else
     {
         yError() << "command not known - type help for more info";
